@@ -8,17 +8,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class MasterServer {
-    /*
-     * echo1 reverse2 upper3 lower4 ceaser5 yours6
-     */
-
+    // Socket for TCP connection to Client
     private ServerSocket TCPSocket;
     private Socket TCPAccept;
 
+    // UDP connection socket for receiving the data from the microServers
     private DatagramSocket recSocket;
     private DatagramPacket dpRec;
     private byte[] recBuf;
 
+    // UDP connection socket for sending the data to the microServers
     private DatagramSocket sendSocketUDP;
     private DatagramPacket dpS;
     private InetAddress ip;
@@ -26,12 +25,15 @@ public class MasterServer {
 
     public MasterServer() {
         try {
+            // Initializing the port for TCP connection
             TCPSocket = new ServerSocket(9898);
 
+            // Initializing the port for receiving from microServers
             recSocket = new DatagramSocket(8080);
             recBuf = new byte[65535];
             dpRec = null;
 
+            // Initializing the part for sending from microServers
             sendSocketUDP = new DatagramSocket();
             ip = InetAddress.getLocalHost();
             sendBuf = null;
@@ -46,15 +48,19 @@ public class MasterServer {
         String clientInput;
         try {
             while (true) {
+                // Accept client connection
                 TCPAccept = TCPSocket.accept();
 
+                // input from client
                 BufferedReader inFromC = new BufferedReader(new InputStreamReader(TCPAccept.getInputStream()));
-                clientInput = inFromC.readLine();
+                clientInput = inFromC.readLine(); // read from client
 
                 System.out.println("Got from client: " + clientInput);
 
+                // output to client
                 DataOutputStream outToC = new DataOutputStream(TCPAccept.getOutputStream());
 
+                // write to Client
                 String toClientS = processData(clientInput);
                 System.out.println("Sending to client: " + toClientS);
                 outToC.writeBytes(toClientS + '\n');
@@ -64,9 +70,11 @@ public class MasterServer {
         }
     }
 
+    // process the data obtained from client to understand the operations on data
     public String processData(String inputS) {
         String[] segments = inputS.split(" ");
 
+        // source data is inserted in inputS
         inputS = "";
         for (int i = 1; i < segments.length; i++) {
             inputS += segments[i] + " ";
@@ -75,6 +83,8 @@ public class MasterServer {
         try {
             int process = Integer.parseInt(segments[0]);
 
+            // this loop checks the operations from back, by performing basic mathematics on
+            // input
             while (process > 0) {
                 int operation = process % 10;
 
@@ -88,13 +98,17 @@ public class MasterServer {
         return inputS;
     }
 
+    // Performs the operations by calling microServers
     public String performOps(String inS, int ops) {
         try {
             System.out.println(inS + " " + ops);
 
+            // byte array to be sent in microServers
             sendBuf = inS.getBytes();
             dpRec = new DatagramPacket(recBuf, recBuf.length);
 
+            // switch case to select a specific microServer, by sending and receiving data
+            // packets
             switch (ops) {
                 case 1:
                     dpS = new DatagramPacket(sendBuf, sendBuf.length, ip, 8081);
@@ -122,23 +136,26 @@ public class MasterServer {
                     recSocket.receive(dpRec);
                     break;
                 case 6:
-                   dpS = new DatagramPacket(sendBuf, sendBuf.length, ip, 8086);
+                    dpS = new DatagramPacket(sendBuf, sendBuf.length, ip, 8086);
                     sendSocketUDP.send(dpS);
                     recSocket.receive(dpRec);
                     break;
                 default:
+                    // skips calling microServer when wrong number is present
                     System.out.println("Skipping, wrong number of server selected");
                     break;
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
+        // creating string to be sent to client
         String outS = new String(data(recBuf));
         recBuf = new byte[65535];
 
         return outS;
     }
 
+    // function to create string from byte []
     public StringBuilder data(byte[] a) {
         if (a == null)
             return null;
